@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Helvetica', Arial, sans-serif; font-size: 11pt; color: #333; }
+    .header { text-align: center; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
+    h2 { margin: 0; color: #0d6efd; } 
+    
+    .info-box { background: #f8f9fa; padding: 15px; margin-bottom: 20px; border: 1px solid #dee2e6; border-left: 4px solid #0d6efd; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+
+    th { background: #0d6efd; color: white; padding: 8px; text-align: left; }
+    td { border-bottom: 1px solid #ddd; padding: 8px; }
+    
+    .caja-area { border: 2px dashed #999; padding: 20px; margin-top: 50px; background: #fff; text-align: center; }
+    .text-muted { color: #777; font-size: 0.9em; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>ORDEN DE PAGO / PRESUPUESTO</h2>
+    <div style="font-size: 0.9em; margin-top: 5px;">UNIDAD DE CUIDADOS CONTINUOS Y PALIATIVOS - HCUCH</div>
+    <div style="font-size: 0.8em; color: #666;">Folio Atención: <?= datos.idAtencion.substring(0,8) ?></div>
+  </div>
+
+  <div class="info-box">
+    <strong>PACIENTE:</strong> <?= datos.paciente ?> <br>
+    <strong>RUN:</strong> <?= datos.run ?> <br>
+    <strong>FECHA EMISIÓN:</strong> <?= Utilities.formatDate(datos.fecha, "GMT-3", "dd/MM/yyyy HH:mm") ?>
+  </div>
+
+  <h3>Detalle a Cancelar</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%">Código</th>
+        <th style="width: 55%">Ítem / Prestación</th>
+        <th style="width: 15%; text-align:center">Cant.</th>
+        <th style="width: 15%; text-align:right">Valor Ref.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <? for (var i = 0; i < datos.items.length; i++) { 
+           var precio = datos.items[i].precio || 0;
+           var textoPrecio = precio > 0 ? "$" + (precio * datos.items[i].cantidad).toLocaleString() : "Por confirmar";
+      ?>
+        <tr>
+          <td><?= datos.items[i].codigo ?></td>
+          <td><?= datos.items[i].nombre ?></td>
+          <td style="text-align:center"><?= datos.items[i].cantidad ?></td>
+          <td style="text-align:right"><?= textoPrecio ?></td>
+        </tr>
+      <? } ?>
+    </tbody>
+  </table>
+
+  <p class="text-muted">* Los valores son referenciales. El monto final será confirmado en Cajas.</p>
+
+  <div class="caja-area">
+    <p><strong>ESPACIO RESERVADO PARA RECAUDACIÓN (CAJAS)</strong></p>
+    <br><br><br>
+    __________________________<br>
+    TIMBRE Y N° CRI
+  </div>
+</body>
+</html>

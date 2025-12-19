@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
+  <style>
+    body { background-color: #f0f2f5; font-size: 14px; padding: 15px; }
+    .card-paciente { border-left: 5px solid #0d6efd; }
+    .table-cart th { background-color: #e9ecef; position: sticky; top: 0; z-index: 1; }
+    .stock-ok { color: green; font-weight: bold; }
+    .stock-low { color: red; font-weight: bold; }
+    
+    /* Estilos para el panel de pago (Amarillo) */
+    .bg-payment { background-color: #fff3cd; border: 1px solid #ffecb5; }
+  </style>
+</head>
+<body>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body p-3">
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+        <input type="text" id="txtRun" class="form-control" placeholder="Buscar RUN (ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()">
+        <button class="btn btn-primary" onclick="buscar()">Buscar Paciente</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelPaciente" class="card shadow-sm mb-3 card-paciente" style="display:none;">
+    <div class="card-body p-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h5 class="mb-1 fw-bold" id="lblNombre">Nombre Paciente</h5>
+          <span class="text-muted" id="lblRun"></span>
+        </div>
+        <div style="width: 220px;">
+          <label class="form-label small fw-bold mb-0">Funcionario Responsable</label>
+          <select id="selUsuario" class="form-select form-select-sm"></select>
+        </div>
+      </div>
+      
+      <hr class="my-2">
+      
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Convenio</label>
+          <select id="selConvenio" class="form-select form-select-sm" onchange="actualizarInterfaz()">
+            <option value="LEY">LEY (Gratuidad)</option>
+            <option value="NO LEY">NO LEY (Pago Directo)</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Tipo Atención</label>
+          <select id="selAtencion" class="form-select form-select-sm" onchange="actualizarInterfaz()">
+            <option value="AMBULATORIO">AMBULATORIO</option>
+            <option value="HOSPITALIZADO">HOSPITALIZADO</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelItems" class="card shadow-sm mb-3" style="display:none;">
+    <div class="card-body p-3">
+      <label class="form-label fw-bold">Agregar Insumo o Prestación</label>
+      <div class="input-group mb-2">
+        <select id="selItem" class="form-select" onchange="verificarStockVisual()">
+          <option value="" selected disabled>Seleccione...</option>
+        </select>
+        <input type="number" id="numCant" class="form-control" value="1" min="1" style="max-width: 80px;">
+        <button class="btn btn-secondary" onclick="agregarAlCarrito()">Agregar</button>
+      </div>
+      <div class="d-flex justify-content-between">
+        <small id="infoStock" class="text-muted">Seleccione un ítem...</small>
+        <small id="infoPrecio" class="text-muted fw-bold"></small>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelCarrito" class="card shadow-sm mb-3" style="display:none;">
+    <div class="card-header bg-light py-2 fw-bold d-flex justify-content-between">
+      <span>Detalle de Entrega</span>
+      <span class="badge bg-secondary" id="countItems">0 ítems</span>
+    </div>
+    <div class="card-body p-0" style="max-height: 200px; overflow-y: auto;">
+      <table class="table table-sm table-striped mb-0 table-cart">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th class="text-center" style="width: 60px;">Cant</th>
+            <th style="width: 40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyCarrito"></tbody>
+      </table>
+    </div>
+    <div id="footerPrecio" class="card-footer text-end fw-bold bg-warning bg-opacity-25" style="display:none;">
+      Total a Pagar: $<span id="lblTotal">0</span>
+    </div>
+  </div>
+
+  <div id="panelCRI" class="card shadow-sm mb-3 bg-payment" style="display:none;">
+    <div class="card-body p-3 d-flex align-items-center justify-content-between">
+      <div>
+        <h6 class="mb-0 fw-bold"><i class="bi bi-receipt"></i> Validación de Pago</h6>
+        <div class="small text-muted">Ingrese el N° de CRI escrito por Cajas.</div>
+      </div>
+      <div>
+        <input type="text" id="txtCRI" class="form-control fw-bold border-warning" placeholder="N° CRI" style="width: 120px;">
+      </div>
+    </div>
+  </div>
+
+  <div id="panelBotones" class="d-grid gap-2 mb-3" style="display:none;">
+    </div>
+
+  <script>
+    // --- VARIABLES GLOBALES ---
+    let dbItems = [];
+    let carrito = [];
+    let idAtencionPendiente = null; // Para saber si estamos retomando un caso
+
+    // --- INICIALIZACIÓN ---
+    window.onload = function() {
+      google.script.run.withSuccessHandler(initData).obtenerDatosInicialesAtencion();
+    };
+
+    function initData(data) {
+      dbItems = data.items;
+      
+      // Llenar Usuarios
+      const selUser = document.getElementById('selUsuario');
+      data.usuarios.forEach(u => {
+        let opt = document.createElement('option');
+        opt.text = u; selUser.add(opt);
+      });
+
+      // Llenar Ítems
+      const selItem = document.getElementById('selItem');
+      dbItems.forEach(i => {
+        let opt = document.createElement('option');
+        opt.value = i.codigo;
+        opt.text = i.nombre; 
+        selItem.add(opt);
+      });
+    }
+
+    // --- BÚSQUEDA Y LÓGICA DE MEMORIA ---
+    function buscar() {
+      const run = document.getElementById('txtRun').value.trim();
+      if(run.length < 3) return alert("Ingrese un RUN válido.");
+
+      const btn = document.querySelector('.input-group button');
+      btn.disabled = true; btn.innerText = "...";
+
+      // Paso 1: Buscar Paciente
+      google.script.run.withSuccessHandler(res => {
+        if(!res.encontrado) {
+           btn.disabled = false; btn.innerText = "Buscar Paciente";
+           return alert("Paciente no encontrado. Debe registrarlo primero.");
+        }
+        
+        // Paso 2: Buscar si tiene algo PENDIENTE hoy
+        google.script.run.withSuccessHandler(resPendiente => {
+           btn.disabled = false; btn.innerText = "Buscar Paciente";
+           mostrarPanel(res, resPendiente);
+        }).buscarAtencionPendiente(run);
+
+      }).buscarPacienteBackend(run);
+    }
+
+    function mostrarPanel(paciente, pendiente) {
+      // Mostrar todos los divs ocultos
+      ['panelPaciente', 'panelItems', 'panelCarrito', 'panelBotones'].forEach(id => {
+        document.getElementById(id).style.display = 'block';
+      });
+
+      document.getElementById('lblNombre').innerText = paciente.nombre;
+      document.getElementById('lblRun').innerText = paciente.runCompleto;
+
+      if (pendiente) {
+        // --- MODO RETORNO (Carga automática) ---
+        idAtencionPendiente = pendiente.idAtencion;
+        
+        // Bloqueamos selectores para obligar a cerrar el ciclo
+        document.getElementById('selConvenio').value = "NO LEY";
+        document.getElementById('selConvenio').disabled = true;
+        document.getElementById('selAtencion').value = "AMBULATORIO"; 
+        
+        // Reconstruir carrito desde la BD
+        carrito = [];
+        pendiente.items.forEach(pItem => {
+           const dbItem = dbItems.find(i => String(i.codigo) === String(pItem.codigo));
+           if(dbItem) {
+             carrito.push({ ...dbItem, cantidad: pItem.cantidad });
+           }
+        });
+        renderCarrito();
+        
+        alert("🔔 SE ENCONTRÓ UN PRESUPUESTO PENDIENTE DE HOY.\nSe cargaron los ítems automáticamente.\nIngrese el CRI para confirmar la entrega.");
+
+      } else {
+        // --- MODO NUEVO (Limpio) ---
+        idAtencionPendiente = null;
+        document.getElementById('selConvenio').value = paciente.convenio || "LEY";
+        document.getElementById('selConvenio').disabled = false;
+        carrito = [];
+        renderCarrito();
+      }
+      
+      actualizarInterfaz();
+    }
+
+    // --- GESTIÓN DE ÍTEMS Y STOCK ---
+    function verificarStockVisual() {
+      const codigo = document.getElementById('selItem').value;
+      const item = dbItems.find(i => String(i.codigo) === String(codigo));
+      const lblStock = document.getElementById('infoStock');
+      const lblPrecio = document.getElementById('infoPrecio');
+      
+      if(item) {
+        // Stock
+        if(item.tipo === 'INSUMO') {
+          lblStock.innerHTML = `Stock: <span class="${item.stock > 0 ? 'stock-ok' : 'stock-low'}">${item.stock}</span>`;
+        } else {
+          lblStock.innerHTML = "Prestación (No usa stock)";
+        }
+        // Precio (Referencial)
+        lblPrecio.innerText = (item.precio > 0) ? `$${item.precio.toLocaleString()}` : "";
+      }
+    }
+
+    function agregarAlCarrito() {
+      const codigo = document.getElementById('selItem').value;
+      const cantidad = parseInt(document.getElementById('numCant').value);
+      const item = dbItems.find(i => String(i.codigo) === String(codigo));
+
+      if(!item) return;
+      if(item.tipo === 'INSUMO' && item.stock < cantidad) {
+        return alert(`Stock insuficiente. Solo quedan ${item.stock} unidades.`);
+      }
+
+      // Buscar si ya existe para sumar
+      const existe = carrito.find(c => c.codigo === codigo);
+      if(existe) {
+        if(item.tipo === 'INSUMO' && (existe.cantidad + cantidad) > item.stock) {
+           return alert("No puedes agregar más de lo que hay en stock.");
+        }
+        existe.cantidad += cantidad;
+      } else {
+        carrito.push({ ...item, cantidad: cantidad });
+      }
+      
+      renderCarrito();
+    }
+
+    function renderCarrito() {
+      const tbody = document.getElementById('tbodyCarrito');
+      tbody.innerHTML = "";
+      let total = 0;
+
+      carrito.forEach((item, idx) => {
+        total += (item.precio || 0) * item.cantidad;
+        tbody.innerHTML += `
+          <tr>
+            <td>${item.nombre}</td>
+            <td class="text-center">${item.cantidad}</td>
+            <td><button class="btn btn-sm btn-outline-danger py-0 border-0" onclick="eliminar(${idx})">×</button></td>
+          </tr>`;
+      });
+
+      document.getElementById('lblTotal').innerText = total.toLocaleString();
+      document.getElementById('countItems').innerText = `${carrito.length} ítems`;
+      
+      actualizarInterfaz();
+    }
+
+    function eliminar(idx) {
+      carrito.splice(idx, 1);
+      renderCarrito();
+    }
+
+    // --- LÓGICA DE ESTADOS Y BOTONES ---
+    function actualizarInterfaz() {
+      const convenio = document.getElementById('selConvenio').value;
+      const atencion = document.getElementById('selAtencion').value;
+      const divBotones = document.getElementById('panelBotones');
+      const panelCRI = document.getElementById('panelCRI');
+      const footerPrecio = document.getElementById('footerPrecio');
+
+      // CASO 1: HOSPITALIZADO (Solo Stock)
+      if (atencion === 'HOSPITALIZADO') {
+        footerPrecio.style.display = 'none';
+        panelCRI.style.display = 'none';
+        divBotones.innerHTML = `
+          <div class="alert alert-info py-1 small mb-2"><i class="bi bi-info-circle"></i> Solo descuento de stock.</div>
+          <button id="btnConfirmar" class="btn btn-primary w-100 fw-bold" onclick="confirmarEntrega()">
+            📉 Descontar Stock
+          </button>`;
+        return;
+      }
+
+      // CASO 2: AMBULATORIO - RECUPERANDO PENDIENTE (Pago)
+      if (idAtencionPendiente) {
+        footerPrecio.style.display = 'block';
+        panelCRI.style.display = 'block'; // Mostrar input CRI
+        divBotones.innerHTML = `
+          <button id="btnConfirmar" class="btn btn-success w-100 fw-bold py-2" onclick="confirmarEntrega()">
+            ✅ Confirmar Pago y Entregar
+          </button>`;
+        return;
+      }
+
+      // CASO 3: AMBULATORIO - NO LEY (Ida)
+      if (convenio === 'NO LEY') {
+        footerPrecio.style.display = 'block';
+        panelCRI.style.display = 'none';
+        divBotones.innerHTML = `
+          <button id="btnPresupuesto" class="btn btn-warning w-100 fw-bold py-2" onclick="generarPresupuesto()">
+            💰 Generar Presupuesto (Ir a Caja)
+          </button>`;
+        return;
+      }
+
+      // CASO 4: AMBULATORIO - LEY (Directo)
+      if (convenio === 'LEY') {
+        footerPrecio.style.display = 'none';
+        panelCRI.style.display = 'none';
+        divBotones.innerHTML = `
+          <button id="btnConfirmar" class="btn btn-success w-100 fw-bold py-2" onclick="confirmarEntrega()">
+            ✅ Confirmar Entrega Directa
+          </button>`;
+      }
+    }
+
+    // --- ACCIÓN: GENERAR PRESUPUESTO (IDA) ---
+    function generarPresupuesto() {
+      if(carrito.length === 0) return alert("El carrito está vacío.");
+      
+      const btn = document.getElementById('btnPresupuesto');
+      btn.disabled = true; btn.innerText = "⏳ Generando documento...";
+
+      const form = {
+        run: document.getElementById('lblRun').innerText,
+        nombre: document.getElementById('lblNombre').innerText,
+        convenio: "NO LEY",
+        tipoAtencion: document.getElementById('selAtencion').value,
+        usuario: document.getElementById('selUsuario').value,
+        carrito: carrito
+      };
+
+      google.script.run.withSuccessHandler(res => {
+        if(res.success) {
+          alert("Presupuesto Generado.\nEl sistema recordará estos ítems cuando vuelva a buscar al paciente hoy.");
+          window.open(res.url, '_blank');
+          google.script.host.close();
+        } else {
+          alert("Error: " + res.error);
+          btn.disabled = false; btn.innerText = "💰 Generar Presupuesto (Ir a Caja)";
+        }
+      }).generarPresupuestoBackend(form);
+    }
+
+    // --- ACCIÓN: CONFIRMAR ENTREGA (RETORNO O DIRECTO) ---
+    function confirmarEntrega() {
+      if(carrito.length === 0) return alert("El carrito está vacío.");
+      
+      const usuario = document.getElementById('selUsuario').value;
+      if(!usuario) return alert("Seleccione el funcionario responsable.");
+
+      const cri = document.getElementById('txtCRI').value.trim();
+      const convenio = document.getElementById('selConvenio').value;
+      const atencion = document.getElementById('selAtencion').value;
+
+      // Validación CRI obligatorio para NO LEY Ambulatorio
+      if (atencion === 'AMBULATORIO' && convenio === 'NO LEY' && cri === "") {
+        return alert("⚠️ Debe ingresar el N° de CRI para confirmar el pago.");
+      }
+
+      const btn = document.getElementById('btnConfirmar');
+      btn.disabled = true; btn.innerText = "⏳ Procesando...";
+
+      const form = {
+        idAtencionPrevio: idAtencionPendiente, // ID si viene de recuperación
+        run: document.getElementById('lblRun').innerText,
+        nombre: document.getElementById('lblNombre').innerText,
+        convenio: convenio,
+        tipoAtencion: atencion,
+        usuario: usuario,
+        cri: cri,
+        carrito: carrito
+      };
+
+      google.script.run.withSuccessHandler(res => {
+        if(res.success) {
+          let msg = "✅ Operación Exitosa.\nStock descontado.";
+          if(res.url) msg += "\nSe abrirá el documento de entrega.";
+          
+          alert(msg);
+          if(res.url) window.open(res.url, '_blank');
+          google.script.host.close();
+        } else {
+          alert("Error: " + res.error);
+          btn.disabled = false; btn.innerText = "Reintentar";
+        }
+      }).confirmarEntregaBackend(form);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Helvetica', Arial, sans-serif; font-size: 10pt; color: #333; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; }
+    h2 { color: #0d6efd; margin: 0; }
+    .meta { font-size: 0.9em; color: #666; margin-top: 5px; }
+    
+    .box { border: 1px solid #ddd; background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .label { font-weight: bold; width: 120px; display: inline-block; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+    th { background: #0d6efd; color: white; padding: 8px; text-align: left; }
+    td { border-bottom: 1px solid #ddd; padding: 8px; }
+    tr:nth-child(even) { background: #f2f2f2; }
+
+    .footer { margin-top: 50px; page-break-inside: avoid; }
+    .firmas { width: 100%; margin-top: 80px; }
+    .firma-linea { border-top: 1px solid #333; width: 40%; text-align: center; padding-top: 5px; display: inline-block; }
+    .disclaimer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>COMPROBANTE DE ENTREGA</h2>
+    <div class="meta">UNIDAD DE CUIDADOS CONTINUOS Y PALIATIVOS - HCUCH</div>
+    <div class="meta">Folio Sistema: <?= datos.idAtencion.substring(0,8) ?></div>
+    <div class="meta">Fecha Emisión: <?= Utilities.formatDate(datos.fecha, "GMT-3", "dd/MM/yyyy HH:mm") ?></div>
+  </div>
+
+  <div class="box">
+    <div class="row">
+      <div><span class="label">PACIENTE:</span> <?= datos.paciente ?></div>
+      <div><span class="label">RUN:</span> <?= datos.run ?></div>
+    </div>
+    <div class="row">
+      <div><span class="label">CONVENIO:</span> <?= datos.convenio ?></div>
+      <div><span class="label">ATENCIÓN:</span> <?= datos.atencion ?></div>
+    </div>
+  </div>
+
+  <h3>Detalle de Entrega</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%">Código</th>
+        <th style="width: 65%">Insumo / Prestación</th>
+        <th style="width: 20%; text-align: center;">Cantidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      <? for (var i = 0; i < datos.items.length; i++) { ?>
+        <tr>
+          <td><?= datos.items[i].codigo ?></td>
+          <td><?= datos.items[i].nombre ?></td>
+          <td style="text-align: center;"><strong><?= datos.items[i].cantidad ?></strong></td>
+        </tr>
+      <? } ?>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p>Declaro haber recibido conforme los insumos y/o prestaciones detalladas anteriormente para el tratamiento indicado.</p>
+    
+    <div class="firmas" style="display: table;">
+        <div style="display: table-cell; width: 50%; padding-right: 20px;">
+            <div class="firma-linea" style="width: 100%">
+                Firma Paciente / Representante<br>
+                RUN: __________________
+            </div>
+        </div>
+        <div style="display: table-cell; width: 50%; padding-left: 20px;">
+            <div class="firma-linea" style="width: 100%">
+                <strong><?= datos.funcionario ?></strong><br>
+                <span style="font-size: 0.9em;">Enfermera Sección Cuidados Continuos y Paliativos</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="disclaimer">
+      Este documento es un comprobante interno de entrega de la Unidad de Cuidados Continuos y Paliativos.
+    </div>
+  </div>
+
+</body>
+</html>

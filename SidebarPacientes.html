@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 15px; font-size: 14px; background-color: #f9f9f9; }
+    .required::after { content: " *"; color: red; }
+    .card { box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: none; }
+  </style>
+</head>
+<body>
+
+  <div class="card p-3">
+    <h5 class="mb-3 text-primary">Registro de Ingreso</h5>
+    
+    <div class="mb-2">
+      <label class="form-label required">RUN (Sin puntos ni guión)</label>
+      <input type="text" id="txtRun" class="form-control" placeholder="Ej: 12345678" 
+             oninput="this.value = this.value.replace(/[^0-9kK]/g, '').toUpperCase()">
+      <div class="form-text text-muted" style="font-size: 0.8em">El DV se calculará automáticamente.</div>
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label required">Nombre Completo</label>
+      <input type="text" id="txtNombre" class="form-control" placeholder="Ej: JUAN PEREZ SOTO" 
+             oninput="this.value = this.value.toUpperCase()">
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label required">Convenio</label>
+      <select id="selTipo" class="form-select">
+        <option value="LEY">LEY (Gratuidad)</option>
+        <option value="NO LEY">NO LEY (Pago)</option>
+      </select>
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label">Teléfono</label>
+      <input type="text" id="txtFono" class="form-control" placeholder="Ej: 229788000">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" id="txtEmail" class="form-control" placeholder="Ej: nombre@ejemplo.com">
+    </div>
+
+    <button id="btnGuardar" class="btn btn-primary w-100 fw-bold" onclick="guardar()">
+      💾 Guardar Paciente
+    </button>
+    
+    <div id="mensaje" class="mt-3"></div>
+  </div>
+
+  <script>
+    function guardar() {
+      // Validaciones
+      const run = document.getElementById('txtRun').value.trim();
+      const nombre = document.getElementById('txtNombre').value.trim();
+      
+      if(run.length < 6) return mostrarAlerta('El RUN parece incorrecto', 'danger');
+      if(nombre.length < 3) return mostrarAlerta('Ingrese el nombre completo', 'danger');
+
+      // Preparar objeto
+      const datos = {
+        run: run,
+        nombre: nombre,
+        convenio: document.getElementById('selTipo').value,
+        telefono: document.getElementById('txtFono').value,
+        email: document.getElementById('txtEmail').value
+      };
+
+      // UI y envío
+      const btn = document.getElementById('btnGuardar');
+      btn.disabled = true;
+      btn.innerText = "⏳ Creando registro...";
+      document.getElementById('mensaje').innerHTML = '';
+
+      // ENVIAR AL SERVIDOR
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = "💾 Guardar Paciente";
+          
+          if(res.success) {
+            mostrarAlerta('✅ ' + res.mensaje, 'success');
+            // Limpiar formulario para el siguiente
+            document.getElementById('txtRun').value = "";
+            document.getElementById('txtNombre').value = "";
+            document.getElementById('txtFono').value = "";
+            document.getElementById('txtEmail').value = "";
+            document.getElementById('txtRun').focus();
+          } else {
+            mostrarAlerta('❌ ' + res.mensaje, 'warning');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = "💾 Guardar Paciente";
+          mostrarAlerta('Error crítico: ' + err.message, 'danger');
+        })
+        .guardarNuevoPaciente(datos);
+    }
+
+    function mostrarAlerta(texto, tipo) {
+      const div = document.getElementById('mensaje');
+      div.innerHTML = `<div class="alert alert-${tipo} p-2 small" role="alert">${texto}</div>`;
+    }
+  </script>
+</body>
+</html>

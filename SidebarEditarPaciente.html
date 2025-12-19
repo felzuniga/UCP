@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 15px; font-size: 14px; background-color: #f8f9fa; }
+    .edit-mode { border: 2px solid #ffc107; background-color: #fff; padding: 15px; border-radius: 8px; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="card mb-3">
+    <div class="card-body p-3">
+      <label class="form-label fw-bold">Buscar Paciente a Actualizar</label>
+      <div class="input-group">
+        <input type="text" id="txtBuscar" class="form-control" placeholder="RUN (Ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()">
+        <button class="btn btn-dark" onclick="buscar()">🔍</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="formEdicion" class="edit-mode shadow-sm">
+    <h6 class="text-warning fw-bold mb-3">✏️ Editando Datos</h6>
+    
+    <input type="hidden" id="hFila">
+    <input type="hidden" id="hId">
+
+    <div class="mb-2">
+      <label class="form-label">RUN (Solo números)</label>
+      <input type="text" id="txtRun" class="form-control bg-light" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label">Nombre Completo</label>
+      <input type="text" id="txtNombre" class="form-control" oninput="this.value = this.value.toUpperCase()">
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label">Convenio</label>
+      <select id="selConvenio" class="form-select">
+        <option value="LEY">LEY</option>
+        <option value="NO LEY">NO LEY</option>
+      </select>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="form-label">Teléfono</label>
+        <input type="text" id="txtFono" class="form-control">
+      </div>
+      <div class="col-6">
+        <label class="form-label">Email</label>
+        <input type="email" id="txtEmail" class="form-control">
+      </div>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button id="btnGuardar" class="btn btn-warning fw-bold" onclick="guardar()">
+        💾 Guardar Cambios
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="cancelar()">
+        Cancelar
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function buscar() {
+      const run = document.getElementById('txtBuscar').value;
+      if(!run) return alert("Ingrese un RUN");
+
+      const btn = document.querySelector('.input-group button');
+      btn.disabled = true; btn.innerText = "...";
+
+      google.script.run.withSuccessHandler(res => {
+        btn.disabled = false; btn.innerText = "🔍";
+
+        if(res.encontrado) {
+          // Mostrar formulario y llenar datos
+          document.getElementById('formEdicion').style.display = 'block';
+          
+          document.getElementById('hFila').value = res.fila;
+          document.getElementById('hId').value = res.id;
+          document.getElementById('txtRun').value = res.run;
+          document.getElementById('txtNombre').value = res.nombre;
+          // Pre-seleccionar el convenio actual
+          document.getElementById('selConvenio').value = res.convenio || "LEY";
+          document.getElementById('txtFono').value = res.telefono;
+          document.getElementById('txtEmail').value = res.email;
+        } else {
+          alert("Paciente no encontrado.");
+          document.getElementById('formEdicion').style.display = 'none';
+        }
+      }).buscarPacienteParaEdicion(run);
+    }
+
+    function guardar() {
+      if(!confirm("¿Confirma actualizar los datos de este paciente?")) return;
+
+      const btn = document.getElementById('btnGuardar');
+      btn.disabled = true; btn.innerText = "Guardando...";
+
+      const datos = {
+        fila: document.getElementById('hFila').value,
+        id: document.getElementById('hId').value,
+        run: document.getElementById('txtRun').value,
+        nombre: document.getElementById('txtNombre').value,
+        convenio: document.getElementById('selConvenio').value,
+        telefono: document.getElementById('txtFono').value,
+        email: document.getElementById('txtEmail').value
+      };
+
+      google.script.run.withSuccessHandler(res => {
+        btn.disabled = false; btn.innerText = "💾 Guardar Cambios";
+        
+        if(res.success) {
+          alert("✅ " + res.mensaje);
+          cancelar(); // Limpia y cierra
+        } else {
+          alert("❌ " + res.mensaje);
+        }
+      }).guardarEdicionPaciente(datos);
+    }
+
+    function cancelar() {
+      document.getElementById('formEdicion').style.display = 'none';
+      document.getElementById('txtBuscar').value = "";
+      document.getElementById('txtBuscar').focus();
+    }
+  </script>
+</body>
+</html>
