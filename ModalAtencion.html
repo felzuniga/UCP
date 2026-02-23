@@ -22,7 +22,7 @@
     <div class="card-body p-3">
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-person-search"></i></span>
-        <input type="text" id="txtRun" class="form-control" placeholder="Buscar RUN (ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()">
+        <input type="text" id="txtRun" class="form-control" placeholder="Ingrese RUN sin DV (ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()" oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="8">
         <button class="btn btn-primary" onclick="buscar()">Buscar Paciente</button>
       </div>
     </div>
@@ -117,6 +117,7 @@
     </div>
 
   <script>
+    const RUN_AUTO = "<?= runAuto ?>";
     // --- VARIABLES GLOBALES ---
     let dbItems = [];
     let carrito = [];
@@ -130,14 +131,12 @@
     function initData(data) {
       dbItems = data.items;
       
-      // Llenar Usuarios
       const selUser = document.getElementById('selUsuario');
       data.usuarios.forEach(u => {
         let opt = document.createElement('option');
         opt.text = u; selUser.add(opt);
       });
 
-      // Llenar Ítems
       const selItem = document.getElementById('selItem');
       dbItems.forEach(i => {
         let opt = document.createElement('option');
@@ -145,6 +144,12 @@
         opt.text = i.nombre; 
         selItem.add(opt);
       });
+
+      // Si nos enviaron un RUT desde el Buscador, lo auto-llenamos y disparamos
+      if (RUN_AUTO && RUN_AUTO !== "") {
+        document.getElementById('txtRun').value = RUN_AUTO;
+        buscar();
+      }
     }
 
     // --- BÚSQUEDA Y LÓGICA DE MEMORIA ---
