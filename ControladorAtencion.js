@@ -2,9 +2,10 @@
  * ControladorAtencion.gs - Gestiona la interfaz de atención y el registro de salidas.
  */
 
-function mostrarModalAtencion() {
-  const html = HtmlService.createHtmlOutputFromFile('ModalAtencion')
-      .setWidth(900).setHeight(700);
+function mostrarModalAtencion(runParam) {
+  const template = HtmlService.createTemplateFromFile('ModalAtencion');
+  template.runAuto = (typeof runParam === 'string') ? runParam : "";
+  const html = template.evaluate().setWidth(900).setHeight(700);
   SpreadsheetApp.getUi().showModelessDialog(html, '📝 Registro de Atención');
 }
 
