@@ -19,13 +19,13 @@ const CONFIG = {
   SHEET_REPORTE_CAJAS: 'Reporte_Cajas',
 
   // IDs de Carpetas
-  FOLDER_ID_PACIENTES: "16-c5GaNZdbqOsQxJPm1S9pUnPFFMZKoQ",
-  FOLDER_ID_PDFS: "1wI3gMoiTilmNMtZzHBnSkBfET0NJm5S6",
+  FOLDER_ID_PACIENTES: "1p0afNfIyYsu70mg_7opPRPbuhj-DIxd8",
+  FOLDER_ID_PDFS: "1RuEiqeKloAbUNLazz029fW0W5pUhsIez",
 
   // LISTA DE USUARIOS (Para los desplegables)
   USUARIOS_AUTORIZADOS: [
     "Valentina Riquelme Melgarejo",
-    "Paula Rodriguez Vergara"
+    "Por confirmar usuario"
   ]
 };
 
@@ -42,7 +42,7 @@ const COL_ITEMS = {
 
 // 3. ATENCIONES
 const COL_ATENCIONES = {
-  ID_ATENCION: 1, FECHA: 2, RUN: 3, NOMBRE: 4, CONVENIO: 5, ATENCION: 6, ESTADO: 7, LINK_ENTREGA: 8, LINK_COBRO: 9, NRO_CRI: 10, USUARIO: 11
+  ID_ATENCION: 1, FECHA: 2, RUN: 3, NOMBRE: 4, CONVENIO: 5, ATENCION: 6, ESTADO: 7, LINK_ENTREGA: 8, LINK_COBRO: 9, LINK_FIRMADO: 10, NRO_CRI: 11, USUARIO: 12
 };
 
 // 4. DETALLE MOVIMIENTOS
