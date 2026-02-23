@@ -2,9 +2,19 @@
  * Pacientes.gs - Gestión de Paciente con Carpeta Digital
  */
 
-function mostrarSidebarPacientes() {
-  const html = HtmlService.createHtmlOutputFromFile('SidebarPacientes')
-      .setWidth(500).setHeight(650);
+function mostrarSidebarEditarPaciente(runParam) {
+  const template = HtmlService.createTemplateFromFile('SidebarEditarPaciente');
+  // Usamos el escudo para evitar errores si se abre desde el menú superior
+  template.runAuto = (typeof runParam === 'string') ? runParam : "";
+  const html = template.evaluate().setWidth(500).setHeight(650);
+  SpreadsheetApp.getUi().showModelessDialog(html, '✏️ Editar / Corregir Paciente');
+}
+
+function mostrarSidebarPacientes(runParam) {
+  const template = HtmlService.createTemplateFromFile('SidebarPacientes');
+  // Usamos el escudo para evitar errores si se abre desde el menú superior
+  template.runAuto = (typeof runParam === 'string') ? runParam : "";
+  const html = template.evaluate().setWidth(500).setHeight(650);
   SpreadsheetApp.getUi().showModelessDialog(html, '👤 Nuevo Paciente');
 }
 
@@ -91,12 +101,6 @@ function buscarPacienteBackend(run) {
 }
 
 // --- ZONA DE EDICIÓN DE PACIENTES ---
-
-function mostrarSidebarEditarPaciente() {
-  const html = HtmlService.createHtmlOutputFromFile('SidebarEditarPaciente')
-      .setWidth(500).setHeight(650);
-  SpreadsheetApp.getUi().showModelessDialog(html, '✏️ Editar / Corregir Paciente');
-}
 
 /**
  * Busca un paciente para editar. Retorna todos los datos actuales incluyendo la fila donde está.
