@@ -14,8 +14,8 @@
     <div class="card-body p-3">
       <label class="form-label fw-bold">Buscar Paciente a Actualizar</label>
       <div class="input-group">
-        <input type="text" id="txtBuscar" class="form-control" placeholder="RUN (Ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()">
-        <button class="btn btn-dark" onclick="buscar()">🔍</button>
+        <input type="text" id="txtBuscar" class="form-control" placeholder="RUN sin DV (Ej: 12345678)" onkeypress="if(event.keyCode==13) buscar()" oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="8">
+        <button class="btn btn-dark" onclick="buscar()" id="btnLupa">🔍</button>
       </div>
     </div>
   </div>
@@ -28,7 +28,7 @@
 
     <div class="mb-2">
       <label class="form-label">RUN (Solo números)</label>
-      <input type="text" id="txtRun" class="form-control bg-light" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+      <input type="text" id="txtRun" class="form-control bg-light" oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="8">
     </div>
 
     <div class="mb-2">
@@ -66,25 +66,38 @@
   </div>
 
   <script>
+    // Inyectamos la variable desde Apps Script
+    const RUN_AUTO = "<?= runAuto ?>";
+
+    window.onload = function() {
+      if (RUN_AUTO && RUN_AUTO !== "") {
+        document.getElementById('txtBuscar').value = RUN_AUTO;
+        // Agregamos un leve retraso (300ms) para asegurar que Apps Script terminó de dibujar la ventana antes de buscar.
+        setTimeout(buscar, 300); 
+      }
+    };
+
     function buscar() {
       const run = document.getElementById('txtBuscar').value;
       if(!run) return alert("Ingrese un RUN");
 
-      const btn = document.querySelector('.input-group button');
+      const btn = document.getElementById('btnLupa');
       btn.disabled = true; btn.innerText = "...";
 
       google.script.run.withSuccessHandler(res => {
         btn.disabled = false; btn.innerText = "🔍";
 
         if(res.encontrado) {
-          // Mostrar formulario y llenar datos
           document.getElementById('formEdicion').style.display = 'block';
           
           document.getElementById('hFila').value = res.fila;
           document.getElementById('hId').value = res.id;
-          document.getElementById('txtRun').value = res.run;
+          
+          // Limpiamos el RUN de guiones o DVs que pudieran venir de la base de datos
+          const runLimpio = String(res.run).replace(/[^0-9]/g, '');
+          document.getElementById('txtRun').value = runLimpio;
+          
           document.getElementById('txtNombre').value = res.nombre;
-          // Pre-seleccionar el convenio actual
           document.getElementById('selConvenio').value = res.convenio || "LEY";
           document.getElementById('txtFono').value = res.telefono;
           document.getElementById('txtEmail').value = res.email;
@@ -113,10 +126,9 @@
 
       google.script.run.withSuccessHandler(res => {
         btn.disabled = false; btn.innerText = "💾 Guardar Cambios";
-        
         if(res.success) {
           alert("✅ " + res.mensaje);
-          cancelar(); // Limpia y cierra
+          cancelar();
         } else {
           alert("❌ " + res.mensaje);
         }
