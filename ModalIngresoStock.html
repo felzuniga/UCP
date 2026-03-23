@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style> 
+      body { padding: 15px; background-color: #f8f9fa; font-size: 14px; } 
+      .table-container { max-height: 400px; overflow-y: auto; background: white; border: 1px solid #dee2e6; }
+      thead th { position: sticky; top: 0; background: #e9ecef; z-index: 1; }
+      .input-qty { width: 80px; text-align: center; }
+      .row-highlight { background-color: #e8f5e9; }
+    </style>
+  </head>
+  <body>
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">📥 Recepción de Insumos</h6>
+        <span class="badge bg-light text-dark" id="lblTotalItems">0 ítems cargados</span>
+      </div>
+      
+      <div class="card-body d-flex flex-col flex-column">
+        
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold small">Funcionario Responsable</label>
+            <select id="selUsuario" class="form-select form-select-sm"></select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold small">Referencia</label>
+            <input type="text" id="txtRef" class="form-control form-select-sm" placeholder="Ej: Pedido Noviembre">
+          </div>
+        </div>
+
+        <div class="table-container mb-3 flex-grow-1">
+          <table class="table table-sm table-hover mb-0" id="tablaInsumos">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Insumo</th>
+                <th class="text-center" style="width: 100px;">Stock</th>
+                <th class="text-center" style="width: 100px;">Ingreso (+)</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyItems">
+              <tr><td colspan="4" class="text-center p-3">Cargando inventario...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <div id="msg" class="text-danger small fw-bold"></div>
+          <button id="btnGuardar" class="btn btn-success fw-bold px-4" onclick="guardar()">
+            💾 Procesar Ingreso
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      let insumosDB = [];
+
+      window.onload = function() {
+        google.script.run.withSuccessHandler(inicializar).obtenerDatosInicialesBodega();
+      };
+
+      function inicializar(datos) {
+        insumosDB = datos.insumos;
+        
+        const selUser = document.getElementById('selUsuario');
+        datos.usuarios.forEach(u => {
+          let opt = document.createElement('option');
+          opt.text = u; selUser.add(opt);
+        });
+
+        renderizarTabla();
+      }
+
+      function renderizarTabla() {
+        const tbody = document.getElementById('tbodyItems');
+        tbody.innerHTML = "";
+
+        if (insumosDB.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center">No hay insumos definidos.</td></tr>';
+          return;
+        }
+
+        // Ordenar: Críticos primero
+        insumosDB.sort((a, b) => (a.esCritico === b.esCritico) ? 0 : a.esCritico ? -1 : 1);
+
+        insumosDB.forEach((item, index) => {
+          const tr = document.createElement('tr');
+          tr.id = `row-${index}`;
+          
+          let badgeStock = `<span class="badge bg-light text-dark border">${item.stockActual}</span>`;
+          if (item.esCritico) {
+            badgeStock = `<span class="badge bg-danger text-white">⚠️ ${item.stockActual}</span>`;
+            tr.classList.add("table-warning");
+          }
+
+          // Guardamos el nombre en un atributo data-nombre para recuperarlo fácil
+          tr.innerHTML = `
+            <td><small class="text-muted">${item.codigo}</small></td>
+            <td class="text-dark" data-nombre="${item.nombre}">${item.nombre}</td>
+            <td class="text-center">${badgeStock}</td>
+            <td class="text-center">
+              <input type="number" min="0" class="form-control form-control-sm input-qty" 
+                     id="qty-${item.codigo}" 
+                     data-index="${index}"
+                     oninput="resaltarFila(this, 'row-${index}')"
+                     placeholder="0">
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function resaltarFila(input, rowId) {
+        const row = document.getElementById(rowId);
+        if (input.value > 0) {
+          row.classList.add('row-highlight');
+          row.classList.add('fw-bold');
+        } else {
+          row.classList.remove('row-highlight');
+          row.classList.remove('fw-bold');
+        }
+        contarResumen();
+      }
+
+      function contarResumen() {
+        let count = 0;
+        document.querySelectorAll('.input-qty').forEach(inp => { if(inp.value > 0) count++; });
+        document.getElementById('lblTotalItems').innerText = `${count} ítems a ingresar`;
+      }
+
+      function guardar() {
+        const usuario = document.getElementById('selUsuario').value;
+        const referencia = document.getElementById('txtRef').value;
+        
+        let itemsAProcesar = [];
+        
+        document.querySelectorAll('.input-qty').forEach(inp => {
+          let cantidad = parseInt(inp.value);
+          if (cantidad > 0) {
+            let codigo = inp.id.split('-')[1];
+            // Recuperamos el nombre desde el DOM o desde el array original usando el índice
+            let index = inp.getAttribute('data-index');
+            let nombre = insumosDB[index].nombre;
+
+            itemsAProcesar.push({ codigo: codigo, nombre: nombre, cantidad: cantidad });
+          }
+        });
+
+        if (itemsAProcesar.length === 0) return alert("No hay cantidades ingresadas.");
+        if (!usuario) return alert("Seleccione usuario responsable.");
+
+        const btn = document.getElementById('btnGuardar');
+        btn.disabled = true; btn.innerText = "⏳ Procesando...";
+
+        const formulario = {
+          usuario: usuario,
+          referencia: referencia || "Carga de Insumos",
+          items: itemsAProcesar
+        };
+
+        google.script.run
+          .withSuccessHandler(res => {
+            if(res.success) {
+              alert(`✅ ÉXITO\nSe cargaron ${res.count} insumos.\nID Carga: ${res.idLote}`);
+              google.script.host.close();
+            } else {
+              document.getElementById('msg').innerText = "Error: " + res.error;
+              btn.disabled = false;
+            }
+          })
+          .withFailureHandler(err => {
+            alert("Error crítico: " + err.message);
+            btn.disabled = false;
+          })
+          .procesarIngresoMasivo(formulario);
+      }
+    </script>
+  </body>
+</html>
